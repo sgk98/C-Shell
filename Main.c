@@ -169,6 +169,9 @@ void runCommand(char* command){
     else if(strcmp(element, "quit") == 0){
         exit(0);
     }
+    else if(strcmp(element, "clear") == 0){
+        printf("\e[1;1H\e[2J");
+    }
     else{
         printf("ERROR: Command does not exist.\n");
     }
