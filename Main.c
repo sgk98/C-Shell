@@ -3,14 +3,16 @@
 #include<pwd.h>
 #include<grp.h>
 #include<string.h>
+#include<inttypes.h>
 #include<stdlib.h>
 #include<unistd.h>
 #include<limits.h>
 #include<dirent.h>
 #include<sys/stat.h>
+#include<sys/types.h>
 
 // MacOS definitions 
-#define MAC_OS
+
 #ifdef MAC_OS
 #define HOST_NAME_MAX 64
 #define LOGIN_NAME_MAX 256
@@ -21,6 +23,29 @@
 char prevdir[PATH_MAX+1];
 // End of global variables
 
+void runProcessBackground(char* argv[]){
+    pid_t pid=fork();
+    if(pid==0)
+    {
+        execvp(argv[0],argv);
+        exit(0);
+    }
+    else{
+        return ;
+    }
+}
+void runProcessForeground(char* argv[]){
+    pid_t pid=fork();
+    if(pid==0)
+    {
+        execvp(argv[0],argv);
+        exit(0);
+    }
+    else{
+        waitpid(pid);
+        return ;
+    }
+}
 void getPwd(char *path){
     getcwd(path, PATH_MAX);
 }
@@ -140,7 +165,7 @@ void ls(char* opt){
             timestring = ctime(&stt.st_mtime);
             timestring[strlen(timestring)-1] = '\0';
             filePermissionDisplay(stt, perm);
-            printf("%s %d\t %s\t %s\t %jd\t", perm, stt.st_nlink, pwd->pw_name, grp->gr_name, (intmax_t)stt.st_size);
+            printf("%s %d\t %s\t %s\t %jd\t", perm, (int)stt.st_nlink, pwd->pw_name, grp->gr_name, (intmax_t)stt.st_size);
             printf("%s\t", timestring+4);
             printf("%s\n", fil->d_name);
         }
@@ -173,6 +198,7 @@ void runCommand(char* command){
         printf("\e[1;1H\e[2J");
     }
     else{
+        
         printf("ERROR: Command does not exist.\n");
     }
 }
