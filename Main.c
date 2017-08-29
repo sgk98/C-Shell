@@ -31,6 +31,7 @@ void runProcessBackground(char* argv[]){
         exit(0);
     }
     else{
+        //waitpid(pid);
         return ;
     }
 }
@@ -42,7 +43,7 @@ void runProcessForeground(char* argv[]){
         exit(0);
     }
     else{
-        waitpid(pid);
+        wait();
         return ;
     }
 }
@@ -198,8 +199,9 @@ void runCommand(char* command){
         printf("\e[1;1H\e[2J");
     }
     else{
-        
-        printf("ERROR: Command does not exist.\n");
+        char* argv[]={element,0};
+        runProcessForeground(argv);
+        //printf("ERROR: Command does not exist.\n");
     }
 }
 
