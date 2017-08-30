@@ -24,7 +24,7 @@ char prevdir[PATH_MAX+1];
 // End of global variables
 void pinfo(char* argv[]){
     if(argv[1]==NULL){
-        printf("HEY");
+        
         pid_t pid=getpid();
         char spid[50];
         sprintf(spid,"%d",pid);
@@ -32,22 +32,42 @@ void pinfo(char* argv[]){
         char prox[100]="/proc/";
         strcat(spid,status);
         strcat(prox,spid);
+       
         char *final[]={"cat",prox,0};
         pid_t pid_fork=fork();
         if(pid_fork==0){
-            printf("%s",final[0]);
-            printf("%s",final[1]);
+            
             execvp(final[0],final);
+            exit(0);
         }
         else{
-            wait();
+            wait(NULL);
         }
+        char proc[200]="/proc/";
+        char nspid[100];
+        sprintf(nspid,"%d",pid);
+        strcat(proc,nspid);
+        char exe[100]="/exe";
+        strcat(proc,exe);
+        pid_t nfork=fork();
+        if(nfork==0){
+            char* get_exe[]={"readlink",proc,0};
+            execvp(get_exe[0],get_exe);
+            exit(0);
+        }
+        else{
+            wait(NULL);
+        }
+
 
         
     }
     else{
         char proc[100]="/proc/";
         strcat(proc,argv[1]);
+        char exe[200];
+        strcpy(exe,proc);
+        strcat(exe,"/exe");
         char status[50]="/status";
         strcat(proc,status);
         char * final[]={"cat",proc,0};
@@ -56,7 +76,17 @@ void pinfo(char* argv[]){
             execvp(final[0],final);
         }
         else{
-            wait();
+            wait(NULL);
+        }
+        pid_t nfork=fork();
+        if(nfork==0)
+        {
+            char* get_exe[]={"readlink",exe,0};
+            execvp(get_exe[0],get_exe);
+            exit(0);
+        }
+        else{
+            wait(NULL);
         }
         //char *final[]={"cat","/proc/[pid]/status",0}
     }
