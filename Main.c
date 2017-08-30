@@ -12,7 +12,7 @@
 #include<sys/types.h>
 
 // MacOS definitions 
-
+#define MAC_OS
 #ifdef MAC_OS
 #define HOST_NAME_MAX 64
 #define LOGIN_NAME_MAX 256
@@ -31,7 +31,6 @@ void runProcessBackground(char* argv[]){
         exit(0);
     }
     else{
-        //waitpid(pid);
         return ;
     }
 }
@@ -43,7 +42,7 @@ void runProcessForeground(char* argv[]){
         exit(0);
     }
     else{
-        wait();
+        wait(NULL);
         return ;
     }
 }
@@ -175,7 +174,7 @@ void ls(char* opt){
 }
 
 void runCommand(char* command){
-    char *element, *recomm = command;
+    char *element, *recomm = command, *temp;
     element = strtok_r(recomm, " ", &recomm);
     if(strcmp(element, "echo") == 0){
         element = strtok_r(recomm, "\0", &recomm);
@@ -190,7 +189,19 @@ void runCommand(char* command){
     }
     else if(strcmp(element, "ls") == 0){
         element = strtok_r(recomm, " ", &recomm);
-        ls(element);
+        temp = strtok_r(recomm, " ", &recomm);
+        if(element && (temp || !(!strcmp("-la", element) || !strcmp("-a", element)
+                    || !strcmp("-l", element) || !strcmp("-al", element)))){
+            char* argv[1000] = {"ls",element,temp};
+            int tm = 2;
+            while(argv[tm]){
+                argv[tm+1] = strtok_r(recomm, " ", &recomm);
+                tm++;
+            }
+            runProcessForeground(argv);
+        }
+        else
+            ls(element);
     }
     else if(strcmp(element, "quit") == 0){
         exit(0);
@@ -199,9 +210,14 @@ void runCommand(char* command){
         printf("\e[1;1H\e[2J");
     }
     else{
-        char* argv[]={element,0};
-        runProcessForeground(argv);
-        //printf("ERROR: Command does not exist.\n");
+        char* argv[1000]={element,0};
+        int tp = 0;
+        while(argv[tp]){
+            argv[tp + 1] = strtok_r(recomm, " ", &recomm);
+            tp++;
+        }
+        if(argv[tp-1] && !strcmp(argv[tp-1],"&")) runProcessBackground(argv);
+        else runProcessForeground(argv);
     }
 }
 
