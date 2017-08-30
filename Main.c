@@ -12,7 +12,7 @@
 #include<sys/types.h>
 
 // MacOS definitions 
-#define MAC_OS
+//#define MAC_OS
 #ifdef MAC_OS
 #define HOST_NAME_MAX 64
 #define LOGIN_NAME_MAX 256
@@ -22,7 +22,45 @@
 // Global variables
 char prevdir[PATH_MAX+1];
 // End of global variables
+void pinfo(char* argv[]){
+    if(argv[1]==NULL){
+        printf("HEY");
+        pid_t pid=getpid();
+        char spid[50];
+        sprintf(spid,"%d",pid);
+        char status[10]="/status";
+        char prox[100]="/proc/";
+        strcat(spid,status);
+        strcat(prox,spid);
+        char *final[]={"cat",prox,0};
+        pid_t pid_fork=fork();
+        if(pid_fork==0){
+            printf("%s",final[0]);
+            printf("%s",final[1]);
+            execvp(final[0],final);
+        }
+        else{
+            wait();
+        }
 
+        
+    }
+    else{
+        char proc[100]="/proc/";
+        strcat(proc,argv[1]);
+        char status[50]="/status";
+        strcat(proc,status);
+        char * final[]={"cat",proc,0};
+        pid_t pid_fork=fork();
+        if(pid_fork==0){
+            execvp(final[0],final);
+        }
+        else{
+            wait();
+        }
+        //char *final[]={"cat","/proc/[pid]/status",0}
+    }
+}
 void runProcessBackground(char* argv[]){
     pid_t pid=fork();
     if(pid==0)
@@ -209,6 +247,10 @@ void runCommand(char* command){
     else if(strcmp(element, "clear") == 0){
         printf("\e[1;1H\e[2J");
     }
+    else if(strcmp(element,"pinfo")==0){
+            char *argv[]={"pinfo",0};
+            pinfo(argv);
+     }
     else{
         char* argv[1000]={element,0};
         int tp = 0;
