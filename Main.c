@@ -95,10 +95,13 @@ void runProcessBackground(char* argv[]){
     pid_t pid=fork();
     if(pid==0)
     {
-        execvp(argv[0],argv);
+        if(execvp(argv[0],argv)<0){
+            printf("Command not found\n");
+        }
         exit(0);
     }
     else{
+        printf("pid:%d\n",pid);
         return ;
     }
 }
@@ -106,7 +109,9 @@ void runProcessForeground(char* argv[]){
     pid_t pid=fork();
     if(pid==0)
     {
-        execvp(argv[0],argv);
+        if(execvp(argv[0],argv)<0){
+            printf("Command not found\n");
+        }
         exit(0);
     }
     else{
@@ -309,6 +314,7 @@ int main(){
         scanf("%[^\n]s", prompt);
         getchar();
         separateCommand(prompt);
+        memset(prompt,0,sizeof prompt);
     }
 }
 
