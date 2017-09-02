@@ -10,7 +10,11 @@
 #include<dirent.h>
 #include<sys/stat.h>
 #include<sys/types.h>
-
+#include<signal.h>
+#include <sys/wait.h>
+#include <sys/resource.h>
+#include<sys/signal.h>
+#include<sched.h>
 // MacOS definitions 
 //#define MAC_OS
 #ifdef MAC_OS
@@ -22,6 +26,25 @@
 // Global variables
 char prevdir[PATH_MAX+1];
 // End of global variables
+
+
+void proc_exit()
+{
+        //int wstat;
+        union wait wstat;
+        pid_t   pid;
+
+        while (1==1) {
+            pid = wait3 (&wstat, WNOHANG, (struct rusage *)NULL );
+            if (pid == 0){
+                return;
+            }
+            else if (pid == -1)
+                return;
+            else
+                printf ("process with pid %d exited with Return code: %d\n",pid, wstat.w_retcode);
+        }
+}
 void pinfo(char* argv[]){
     if(argv[1]==NULL){
         
@@ -92,9 +115,11 @@ void pinfo(char* argv[]){
     }
 }
 void runProcessBackground(char* argv[]){
+    signal(SIGCHLD,proc_exit);
     pid_t pid=fork();
     if(pid==0)
     {
+        
         if(execvp(argv[0],argv)<0){
             printf("Command not found\n");
         }
