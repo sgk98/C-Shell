@@ -1,4 +1,5 @@
 #include<stdio.h>
+#include<fcntl.h>
 #include<time.h>
 #include<pwd.h>
 #include<grp.h>
@@ -16,7 +17,7 @@
 #include<sys/signal.h>
 #include<sched.h>
 // MacOS definitions 
-//#define MAC_OS
+#define MAC_OS
 #ifdef MAC_OS
 #define HOST_NAME_MAX 64
 #define LOGIN_NAME_MAX 256
@@ -35,7 +36,7 @@ void proc_exit()
         pid_t   pid;
 
         while (1==1) {
-            pid = wait3 (&wstat, WNOHANG, (struct rusage *)NULL );
+            /*pid = wait3 (&wstat, WNOHANG, (struct rusage *)NULL );*/
             if (pid == 0){
                 return;
             }
@@ -45,6 +46,7 @@ void proc_exit()
                 printf ("process with pid %d exited with Return code: %d\n",pid, wstat.w_retcode);
         }
 }
+
 void pinfo(char* argv[]){
     if(argv[1]==NULL){
         
@@ -81,9 +83,6 @@ void pinfo(char* argv[]){
         else{
             wait(NULL);
         }
-
-
-        
     }
     else{
         char proc[100]="/proc/";
@@ -111,9 +110,9 @@ void pinfo(char* argv[]){
         else{
             wait(NULL);
         }
-        //char *final[]={"cat","/proc/[pid]/status",0}
     }
 }
+
 void runProcessBackground(char* argv[]){
     signal(SIGCHLD,proc_exit);
     pid_t pid=fork();
@@ -130,6 +129,7 @@ void runProcessBackground(char* argv[]){
         return ;
     }
 }
+
 void runProcessForeground(char* argv[]){
     pid_t pid=fork();
     if(pid==0)
@@ -144,6 +144,17 @@ void runProcessForeground(char* argv[]){
         return ;
     }
 }
+
+int characterFreq(char *str, char x){
+    int ret = 0;
+    int i = 0;
+    while(str[i]!='\0'){
+        if (x == str[i]) ret++;
+        i++;
+    }
+    return ret;
+}
+
 void getPwd(char *path){
     getcwd(path, PATH_MAX);
 }
@@ -201,12 +212,17 @@ void filePermissionDisplay(struct stat stt, char* tmp){
     if(++i && stt.st_mode & S_IXOTH) tmp[i-1] = 'x';
 }
 
-void echo(char *toprint){
-    char *element, *str = toprint;
-    element = strtok_r(str, "\"\'", &str);
-    while(element){
-        printf("%s", element);
+void echo(char *toprint[]){
+    int t = 1;
+    while(toprint[t]){
+        if(t > 1) printf(" ");
+        char *element, *str = toprint[t];
         element = strtok_r(str, "\"\'", &str);
+        while(element){
+            printf("%s", element);
+            element = strtok_r(str, "\"\'", &str);
+        }
+        t++;
     }
     printf("\n");
 }
@@ -274,28 +290,96 @@ void ls(char* opt){
 void runCommand(char* command){
     char *element, *recomm = command, *temp;
     element = strtok_r(recomm, " ", &recomm);
+    char* argv[1000]={element,0};
+    int tp = 0;
+    while(argv[tp]){
+        argv[tp + 1] = strtok_r(recomm, " ", &recomm);
+        tp++;
+    }
+
+    int inp = 0, out = 0, outw = 0;
+    char inpf[256] = {0}, outf[256] = {0};
+    int sm;
+    int INP, OUT;
+    int save_in, save_out;
+    if(tp > 2 && argv[tp-1][strlen(argv[tp-1])-1] != '\"')
+    {
+        if(!strcmp(argv[tp-2], "<")){
+            inp = 1;
+            strcpy(inpf, argv[tp-1]);
+            if(tp >= 5 && argv[tp-3][strlen(argv[tp-3])-1] != '\"'){
+                if(!strcmp(argv[tp-4],">")){
+                    out = 1;
+                    strcpy(outf, argv[tp-3]);
+                }
+                else if(!strcmp(argv[tp-4],">>")){
+                    outw = 1;
+                    strcpy(outf, argv[tp-3]);
+                }
+            }
+        }
+        else if(!strcmp(argv[tp-2], ">>")){
+            outw = 1;
+            strcpy(outf, argv[tp-1]);
+            if(tp >= 5 && argv[tp-3][strlen(argv[tp-3])-1] != '\"'){
+                if(!strcmp(argv[tp-4],"<")){
+                    inp = 1;
+                    strcpy(inpf, argv[tp-3]);
+                }
+            }
+        }
+        else if(!strcmp(argv[tp-2], ">")){
+            out = 1;
+            strcpy(outf, argv[tp-1]);
+            if(tp >= 5 && argv[tp-3][strlen(argv[tp-3])-1] != '\"'){
+                if(!strcmp(argv[tp-4],"<")){
+                    inp = 1;
+                    strcpy(inpf, argv[tp-3]);
+                }
+            }
+        }
+        sm = inp + out + outw;
+        if(sm >= 1){
+            argv[tp - 1] = argv[tp - 2] = 0;
+            tp-=2;
+            if(sm == 2){
+                argv[tp - 1] = argv[tp - 2] = 0;
+                tp-=2;
+            }
+        }
+        if(out == 1 || outw == 1){
+            if(out == 1)
+                OUT = open(outf, O_CREAT|O_WRONLY|O_TRUNC|S_IRWXU);
+            else if(outw == 1)
+                OUT = open(outf, O_WRONLY|O_CREAT|O_APPEND);
+            save_out = dup(fileno(stdout));
+            dup2(OUT, fileno(stdout));
+            fflush(stdout);
+            close(OUT);
+        }
+        if(inp == 1){
+            INP = open(inpf, O_RDONLY);
+            save_in = dup(fileno(stdin));
+            dup2(INP, fileno(stdin));
+            close(INP);
+        }
+    }
+
+
     if(strcmp(element, "echo") == 0){
-        element = strtok_r(recomm, "\0", &recomm);
-        echo(element);
+        echo(argv);
     }
     else if(strcmp(element, "pwd") == 0){
         pwd();
     }
     else if(strcmp(element, "cd") == 0){
-        element = strtok_r(recomm, " ", &recomm);
-        cd(element);
+        cd(argv[1]);
     }
     else if(strcmp(element, "ls") == 0){
-        element = strtok_r(recomm, " ", &recomm);
-        temp = strtok_r(recomm, " ", &recomm);
+        element = argv[1];
+        temp = argv[2];
         if(element && (temp || !(!strcmp("-la", element) || !strcmp("-a", element)
-                    || !strcmp("-l", element) || !strcmp("-al", element)))){
-            char* argv[1000] = {"ls",element,temp};
-            int tm = 2;
-            while(argv[tm]){
-                argv[tm+1] = strtok_r(recomm, " ", &recomm);
-                tm++;
-            }
+                        || !strcmp("-l", element) || !strcmp("-al", element)))){
             runProcessForeground(argv);
         }
         else
@@ -308,18 +392,52 @@ void runCommand(char* command){
         printf("\e[1;1H\e[2J");
     }
     else if(strcmp(element,"pinfo")==0){
-            char *argv[]={"pinfo",0};
-            pinfo(argv);
-     }
+        char *argv2[]={"pinfo",0};
+        pinfo(argv2);
+    }
     else{
-        char* argv[1000]={element,0};
-        int tp = 0;
-        while(argv[tp]){
-            argv[tp + 1] = strtok_r(recomm, " ", &recomm);
-            tp++;
+        if(sm > 0) runProcessForeground(argv);
+        else{
+            if(argv[tp-1] && !strcmp(argv[tp-1],"&")) runProcessBackground(argv);
+            else runProcessForeground(argv);
         }
-        if(argv[tp-1] && !strcmp(argv[tp-1],"&")) runProcessBackground(argv);
-        else runProcessForeground(argv);
+    }
+
+    if(out == 1 || outw == 1){
+        OUT = 1;
+        dup2(save_out, fileno(stdout));
+        close(save_out);
+    }
+    if(inp == 1){
+        INP = 0;
+        dup2(save_in, fileno(stdin));
+        close(save_in);
+    }
+}
+
+void runPipe(char* command){
+    int     p[2];
+    pid_t   pid;
+    int     fd_in = 0;
+    char* single = strtok_r(command, "|", &command);
+    while(single){
+        pipe(p);
+        char* doub = strtok_r(command, "|", &command);
+        if((pid = fork()) == -1) exit(EXIT_FAILURE);
+        else if(pid == 0){
+            dup2(fd_in, 0);
+            if(doub != NULL)
+                dup2(p[1], 1);
+            close(p[0]);
+            runCommand(single);
+            exit(EXIT_FAILURE);
+        }
+        else{
+            wait(NULL);
+            close(p[1]);
+            fd_in = p[0];
+        }
+        single = doub;
     }
 }
 
@@ -327,7 +445,7 @@ void separateCommand(char* prompt){
     char *single, *reprompt = prompt;
     single = strtok_r(reprompt, ";", &reprompt);
     while(single){
-        runCommand(single);
+        runPipe(single);
         single = strtok_r(reprompt, ";", &reprompt);
     }
 }
