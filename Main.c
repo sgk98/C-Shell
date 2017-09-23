@@ -28,11 +28,18 @@
 char prevdir[PATH_MAX+1];
 // End of global variables
 typedef struct job{
-    char *name;
+    char name[100];
     pid_t pid;
 }job;
 job JOBS[1000];
 int sp;
+void overkill(){
+    int i;
+    for(i=0;i<sp;i++){
+        kill(JOBS[i].pid,9);
+    }
+    return ;
+}
 void jobs(){
     int i;
     int act=0;
@@ -45,6 +52,24 @@ void jobs(){
         }
     }
     return ;
+}
+void kjob(char *argv[]){
+    int job=atoi(argv[1]);
+    int sig=atoi(argv[2]);
+    int i;
+    int act=0;
+    for(i=0;i<sp;i++){
+        int alive=kill(JOBS[i].pid,0);
+        if(alive==0){
+            act++;
+            if(act==job){
+                kill(JOBS[i].pid,sig);
+            }
+        }
+    }
+    return;
+
+
 }
 void proc_exit()
 {
@@ -143,7 +168,7 @@ void runProcessBackground(char* argv[]){
     }
     else{
         printf("pid:%d\n",pid);
-        JOBS[sp].name=argv[0];
+        strcpy(JOBS[sp].name,argv[0]);
         JOBS[sp].pid=pid;
         sp++;
         printf("%s\n",JOBS[sp-1].name);
@@ -411,6 +436,12 @@ void runCommand(char* command){
     }
     else if(strcmp(element, "quit") == 0){
         exit(0);
+    }
+    else if(strcmp(element,"overkill")==0){
+        overkill();
+    }
+    else if(strcmp(element,"kjob")==0){
+        kjob(argv);
     }
     else if(strcmp(element, "clear") == 0){
         printf("\e[1;1H\e[2J");
