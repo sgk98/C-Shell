@@ -420,9 +420,10 @@ void runPipe(char* command){
     pid_t   pid;
     int     fd_in = 0;
     char* single = strtok_r(command, "|", &command);
+    char* doub = strtok_r(command, "|", &command);
+    if(doub == NULL) {runCommand(single); return;}
     while(single){
         pipe(p);
-        char* doub = strtok_r(command, "|", &command);
         if((pid = fork()) == -1) exit(EXIT_FAILURE);
         else if(pid == 0){
             dup2(fd_in, 0);
@@ -438,6 +439,7 @@ void runPipe(char* command){
             fd_in = p[0];
         }
         single = doub;
+        doub = strtok_r(command, "|", &command);
     }
 }
 
