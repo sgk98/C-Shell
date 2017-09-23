@@ -27,12 +27,19 @@
 // Global variables
 char prevdir[PATH_MAX+1];
 // End of global variables
+
 typedef struct job{
     char name[100];
     pid_t pid;
 }job;
 job JOBS[1000];
 int sp;
+
+void sig_handler(int sig){
+    if(sig==SIGINT||sig==SIGTSTP||sig==SIGSTOP)
+        ;
+    return ;
+}
 void overkill(){
     int i;
     for(i=0;i<sp;i++){
@@ -510,6 +517,15 @@ void separateCommand(char* prompt){
 int main(){
     char prompt[1000];
     while(1){
+        signal(SIGINT,SIG_IGN);
+        signal(SIGSTOP,SIG_IGN);
+        signal(SIGTSTP,SIG_IGN);
+        if(signal(SIGINT,sig_handler)==0)
+            continue;
+        if(signal(SIGSTOP,sig_handler)==0)
+            continue;
+        if(signal(SIGTSTP,sig_handler)==0)
+            continue;
         promptDisplayer();
         scanf("%[^\n]s", prompt);
         getchar();
