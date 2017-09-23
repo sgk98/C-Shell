@@ -27,8 +27,25 @@
 // Global variables
 char prevdir[PATH_MAX+1];
 // End of global variables
-
-
+typedef struct job{
+    char *name;
+    pid_t pid;
+}job;
+job JOBS[1000];
+int sp;
+void jobs(){
+    int i;
+    int act=0;
+    for(i=0;i<sp;i++){
+        int alive=kill(JOBS[i].pid,0);
+        if(alive==0)
+        {
+            act++;
+            printf("[%d] %d  %s\n",act,JOBS[i].pid,JOBS[i].name);
+        }
+    }
+    return ;
+}
 void proc_exit()
 {
         //int wstat;
@@ -36,7 +53,7 @@ void proc_exit()
         pid_t   pid;
 
         while (1==1) {
-            /*pid = wait3 (&wstat, WNOHANG, (struct rusage *)NULL );*/
+            pid = wait3 (&wstat, WNOHANG, (struct rusage *)NULL );
             if (pid == 0){
                 return;
             }
@@ -126,6 +143,10 @@ void runProcessBackground(char* argv[]){
     }
     else{
         printf("pid:%d\n",pid);
+        JOBS[sp].name=argv[0];
+        JOBS[sp].pid=pid;
+        sp++;
+        printf("%s\n",JOBS[sp-1].name);
         return ;
     }
 }
@@ -384,6 +405,9 @@ void runCommand(char* command){
         }
         else
             ls(element);
+    }
+    else if(strcmp(element,"jobs")==0){
+        jobs();
     }
     else if(strcmp(element, "quit") == 0){
         exit(0);
