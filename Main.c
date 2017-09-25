@@ -26,50 +26,42 @@
 // End of MacOS definitions
 //
 // Global variables
+char prevdir[PATH_MAX+1];
+// End of global variables
+
 typedef struct job{
     char name[100];
     pid_t pid;
-} job;
-
-job     JOBS[1000];
-int     sp;
-char    prevdir[PATH_MAX+1];
-// End of global variables
-
-
-
+}job;
+job cur;
+job JOBS[1000];
+int sp;
 void execute_setenv(char *argv[]){
-    char* var = argv[1];
-    char* val = argv[2];
+    char* var=argv[1];
+    char* val=argv[2];
     setenv(val,var,1);
     printf("%s\n",getenv(val));
 }
-
 void fg(char *argv[]){
-    int     job = atoi(argv[1]);
-    int     i;
-    int     act=0;
-
+    int job=atoi(argv[1]);
+    int i;
+    int act=0;
     for(i=0;i<sp;i++){
         if(kill(JOBS[i].pid,0)==0){
             act++;
             if(act==job){
                 kill(JOBS[i].pid,SIGCONT);
-                wait(NULL);
+                int status;
+                waitpid(JOBS[i].pid,&status,WCONTINUED);
             }
            
         }
-        else{
-            fprintf(stderr, "%s", strerror(errno));
-        }
     }
 }
-
 void bg(char *argv[]){
-    int     job=atoi(argv[1]);
-    int     i;
-    int     act=0;
-
+    int job=atoi(argv[1]);
+    int i;
+    int act=0;
     for(i=0;i<sp;i++){
         if(kill(JOBS[i].pid,0)==0){
             act++;
@@ -77,162 +69,137 @@ void bg(char *argv[]){
                 kill(JOBS[i].pid,SIGCONT);
             }
         }
-        else{
-            fprintf(stderr, "%s", strerror(errno));
-        }
     }
-
 }
 
 void execute_unsetenv(char *argv[]){
-    char*   var = argv[1];
+    char* var =argv[1];
     unsetenv(var);
 }
-
 void sig_handler(int sig){
     if(sig==SIGINT||sig==SIGSTOP)
         ;
+    if(sig==SIGTSTP){
+        printf("SIGTSTP called");
+        printf("%d\n",cur.pid);
+        JOBS[sp].pid=cur.pid;
+        strcpy(JOBS[sp].name,cur.name);
+        sp++;
+        kill(cur.pid,SIGSTOP);
+        printf("kill called\n");
+    }
     return ;
 }
-
 void overkill(){
-    int     i;
+    int i;
     for(i=0;i<sp;i++){
         kill(JOBS[i].pid,9);
     }
+    return ;
 }
-
 void jobs(){
-    int     i;
-    int     act=0;
-
+    int i;
+    int act=0;
     for(i=0;i<sp;i++){
-        int alive = kill(JOBS[i].pid,0);
+        int alive=kill(JOBS[i].pid,0);
         if(alive==0)
         {
             act++;
             printf("[%d] %d  %s\n",act,JOBS[i].pid,JOBS[i].name);
         }
-        else{
-            fprintf(stderr, "%s", strerror(errno));
-        }
     }
-
+    return ;
 }
-
 void kjob(char *argv[]){
-    int     job=atoi(argv[1]);
-    int     sig=atoi(argv[2]);
-    int     i;
-    int     act=0;
-
+    int job=atoi(argv[1]);
+    int sig=atoi(argv[2]);
+    int i;
+    int act=0;
     for(i=0;i<sp;i++){
-        int alive = kill(JOBS[i].pid,0);
+        int alive=kill(JOBS[i].pid,0);
         if(alive==0){
             act++;
             if(act==job){
                 kill(JOBS[i].pid,sig);
             }
         }
-        else{
-            fprintf(stderr, "%s\n", strerror(errno));
-        }
     }
+    return;
+
 
 }
-
 void proc_exit()
 {
-    union wait wstat;
-    pid_t   pid;
+        //int wstat;
+        union wait wstat;
+        pid_t   pid;
 
-    while (1) {
-        pid = wait3(&wstat, WNOHANG, (struct rusage *)NULL );
-        if (pid == 0){
-            return;
+        while (1==1) {
+            pid = wait3(&wstat, WNOHANG, (struct rusage *)NULL );
+            if (pid == 0){
+                return;
+            }
+            else if (pid == -1)
+                return;
+            else
+                printf ("process with pid %d exited with Return code: %d\n",pid, wstat.w_retcode);
         }
-        else if (pid == -1)
-            continue;
-        else
-            printf ("process with pid %d exited with Return code: %d\n",pid, wstat.w_retcode);
-    }
 }
 
 void pinfo(char* argv[]){
-    if(argv[1] == NULL){
-
-        pid_t   pid= getpid();
-        char    spid[50];
-        char    status[10] = "/status";
-        char    prox[100] = "/proc/";
-
+    if(argv[1]==NULL){
+        
+        pid_t pid=getpid();
+        char spid[50];
         sprintf(spid,"%d",pid);
+        char status[10]="/status";
+        char prox[100]="/proc/";
         strcat(spid,status);
         strcat(prox,spid);
-
-        char *final[] = {"cat", prox, 0};
-
+       
+        char *final[]={"cat",prox,0};
         pid_t pid_fork=fork();
         if(pid_fork==0){
+            
             execvp(final[0],final);
             exit(0);
-        }
-        else if(pid_fork == -1){
-            fprintf(stderr, "%s\n", strerror(errno));
         }
         else{
             wait(NULL);
         }
-
-        char    proc[200] = "/proc/";
-        char    nspid[100];
-        char    exe[100]="/exe";
-
+        char proc[200]="/proc/";
+        char nspid[100];
         sprintf(nspid,"%d",pid);
         strcat(proc,nspid);
+        char exe[100]="/exe";
         strcat(proc,exe);
-        pid_t nfork = fork();
-
+        pid_t nfork=fork();
         if(nfork==0){
             char* get_exe[]={"readlink",proc,0};
             execvp(get_exe[0],get_exe);
             exit(0);
-        }
-        else if(nfork == -1){
-            fprintf(stderr, "%s\n", strerror(errno));
         }
         else{
             wait(NULL);
         }
     }
     else{
-        char    proc[100] = "/proc/";
-        char    exe[200];
-        char    status[50] = "/status";
-
+        char proc[100]="/proc/";
         strcat(proc,argv[1]);
+        char exe[200];
         strcpy(exe,proc);
         strcat(exe,"/exe");
+        char status[50]="/status";
         strcat(proc,status);
-
-        char    *final[] = {"cat",proc,0};
-        pid_t   pid_fork = fork();
-
-        if(pid_fork == 0){
-            if(execvp(final[0],final) == -1)
-                printf("ERROR: No such pid value.");
-            return;
-        }
-        else if(pid_fork == -1){
-            fprintf(stderr, "%s",strerror(errno));
-            return;
+        char * final[]={"cat",proc,0};
+        pid_t pid_fork=fork();
+        if(pid_fork==0){
+            execvp(final[0],final);
         }
         else{
             wait(NULL);
         }
-
-        pid_t   nfork = fork();
-
+        pid_t nfork=fork();
         if(nfork==0)
         {
             char* get_exe[]={"readlink",exe,0};
@@ -243,56 +210,45 @@ void pinfo(char* argv[]){
             wait(NULL);
         }
     }
-
 }
 
 void runProcessBackground(char* argv[]){
-    if(signal(SIGCHLD,proc_exit) == SIG_ERR){
-        printf("Can't catch SIGCHILD\n");
-        return;
-    }
-
-    pid_t pid   = fork();
-
+    signal(SIGCHLD,proc_exit);
+    pid_t pid=fork();
     if(pid==0)
     {
+        
         if(execvp(argv[0],argv)<0){
-            fprintf(stderr, "%s\n", strerror(errno));
             printf("Command not found\n");
         }
         exit(0);
-    }
-    else if(pid == -1){
-        fprintf(stderr, "%s\n", strerror(errno));
-        return;
     }
     else{
         printf("pid:%d\n",pid);
-        strcpy(JOBS[sp].name, argv[0]);
-        JOBS[sp].pid = pid;
+        strcpy(JOBS[sp].name,argv[0]);
+        JOBS[sp].pid=pid;
         sp++;
-        printf("%s\n", JOBS[sp-1].name);
-        return;
+        printf("%s\n",JOBS[sp-1].name);
+        return ;
     }
-
 }
 
 void runProcessForeground(char* argv[]){
-    pid_t   pid = fork();
+    pid_t pid=fork();
     if(pid==0)
     {
         if(execvp(argv[0],argv)<0){
-            fprintf(stderr, "%s\n", strerror(errno));
             printf("Command not found\n");
         }
         exit(0);
     }
-    else if(pid == -1){
-        fprintf(stderr, "%s\n", strerror(errno));
-        return;
-    }
     else{
-        wait(NULL);
+        cur.pid=pid;
+        strcpy(cur.name,argv[0]);
+        //wait(NULL);
+        int status;
+        waitpid(cur.pid,&status,WUNTRACED);
+
         return ;
     }
 }
@@ -310,9 +266,8 @@ void getHostname(char *hostname){
 }
 
 void pwdHomeParser(char *path){
-    char    *homepath = getenv("HOME");
-    int     minsize = strlen(homepath);
-
+    char *homepath = getenv("HOME");
+    int minsize = strlen(homepath);
     if(minsize > strlen(path)){
         printf("%s", path);
     }
@@ -330,9 +285,7 @@ void pwdHomeParser(char *path){
 }
 
 void promptDisplayer(){
-    char    path[PATH_MAX+1];
-    char    username[LOGIN_NAME_MAX+1];
-    char    hostname[HOST_NAME_MAX+1];
+    char path[PATH_MAX+1], username[LOGIN_NAME_MAX+1], hostname[HOST_NAME_MAX+1];
     getPwd(path);
     getUsername(username);
     getHostname(hostname);
@@ -399,7 +352,7 @@ void cd(char *ndir){
         ret = chdir(ndir);
     }
     if(ret == -1){
-        fprintf(stderr,"%s\n",strerror(errno));
+        strerror(errno);
     }
     else{
         strcpy(prevdir, temp);
@@ -418,16 +371,16 @@ void ls(char* opt){
     struct stat     stt;
 
     if(opt && ((strlen(opt) == 2 && opt[1] == 'a') ||
-                (strlen(opt) == 3 && (opt[1] == 'a' || opt[2] == 'a'))))
+            (strlen(opt) == 3 && (opt[1] == 'a' || opt[2] == 'a'))))
         a = 1;
 
     if(opt && ((strlen(opt) == 2 && opt[1] == 'l') ||
-                (strlen(opt) == 3 && (opt[1] == 'l' || opt[2] == 'l'))))
+            (strlen(opt) == 3 && (opt[1] == 'l' || opt[2] == 'l'))))
         l = 1;
 
     dir = opendir(".");
     if(dir == NULL){
-        fprintf(stderr,"%s\n",strerror(errno));
+        strerror(errno);
         return;
     }
 
@@ -610,7 +563,7 @@ void runPipe(char* command){
 
     while(single){
         if(pipe(p) == -1){
-            fprintf(stderr, "%s\n", strerror(errno));
+            printf("%s\n", strerror(errno));
             exit(EXIT_FAILURE);
         }
 
@@ -620,19 +573,19 @@ void runPipe(char* command){
         else if(pid == 0){
 
             if(dup2(fd_in, 0) == -1){
-                fprintf(stderr, "%s\n", strerror(errno));
+                printf("%s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
 
             if(doub != NULL){
                 if(dup2(p[1], 1) == -1){
-                    fprintf(stderr, "%s\n", strerror(errno));
+                    printf("%s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
             }
 
             if(close(p[0]) == -1){
-                fprintf(stderr, "%s\n", strerror(errno));
+                printf("%s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
 
@@ -642,7 +595,7 @@ void runPipe(char* command){
         else{
             wait(NULL);
             if(close(p[1]) == -1){
-                fprintf(stderr, "%s\n", strerror(errno));
+                printf("%s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
             fd_in = p[0];
@@ -679,9 +632,10 @@ void signalInit(){
 }
 
 int main(){
-    char    prompt[1000];
+    char prompt[1000];
+    signalInit();
     while(1){
-        signalInit();
+        //signalInit();
         promptDisplayer();
         scanf("%[^\n]s", prompt);
         getchar();
