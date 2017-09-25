@@ -51,8 +51,9 @@ void fg(char *argv[]){
             act++;
             if(act==job){
                 kill(JOBS[i].pid,SIGCONT);
+                printf("%d\n",JOBS[i].pid);
                 int status;
-                waitpid(JOBS[i].pid,&status,WCONTINUED);
+                waitpid(JOBS[i].pid,&status,WCONTINUED&0);
             }
            
         }
