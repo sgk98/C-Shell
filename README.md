@@ -16,12 +16,14 @@ Bash like C Shell. For the OS assignment(Part 1)
 
     d) Bonus Done: Background process informs when it exits.
 
+    e)Piping,direction,signal handling and other user defined functions.
+
 
 **Usage**
 
 
-gcc Main.c
-./a.out
+make
+./shell
 
 To exit:
 quit
