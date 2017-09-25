@@ -34,9 +34,30 @@ typedef struct job{
 }job;
 job JOBS[1000];
 int sp;
-
+void execute_setenv(char *argv[]){
+    char* var=argv[1];
+    char* val=argv[2];
+    setenv(val,var,1);
+    printf("%s\n",getenv(val));
+}
+void fg(char *argv[]){
+    int job=atoi(argv[1]);
+    int i;
+    int act=0;
+    for(i=0;i<sp;i++){
+        if(kill(JOBS[i].pid,0)==0){
+            act++;
+            if(act==job)
+                kill(JOBS[i].pid,SIGCONT);
+        }
+    }
+}
+void execute_unsetenv(char *argv[]){
+    char* var =argv[1];
+    unsetenv(var);
+}
 void sig_handler(int sig){
-    if(sig==SIGINT||sig==SIGTSTP||sig==SIGSTOP)
+    if(sig==SIGINT||sig==SIGSTOP)
         ;
     return ;
 }
@@ -441,8 +462,17 @@ void runCommand(char* command){
     else if(strcmp(element,"jobs")==0){
         jobs();
     }
+    else if(strcmp(element,"fg")==0){
+        fg(argv);
+    }
     else if(strcmp(element, "quit") == 0){
         exit(0);
+    }
+    else if(strcmp(element,"setenv")==0){
+        execute_setenv(argv);
+    }
+    else if(strcmp(element,"unsetenv")==0){
+        execute_unsetenv(argv);
     }
     else if(strcmp(element,"overkill")==0){
         overkill();
