@@ -1,22 +1,22 @@
-#include<stdio.h>
-#include<fcntl.h>
-#include<time.h>
-#include<pwd.h>
-#include<grp.h>
-#include<string.h>
-#include<errno.h>
-#include<inttypes.h>
-#include<stdlib.h>
-#include<unistd.h>
-#include<limits.h>
-#include<dirent.h>
-#include<sys/stat.h>
-#include<sys/types.h>
-#include<signal.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <time.h>
+#include <pwd.h>
+#include <grp.h>
+#include <string.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <limits.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <sys/resource.h>
-#include<sys/signal.h>
-#include<sched.h>
+#include <sys/signal.h>
+#include <sched.h>
 // MacOS definitions 
 #define MAC_OS
 #ifdef MAC_OS
@@ -48,11 +48,28 @@ void fg(char *argv[]){
     for(i=0;i<sp;i++){
         if(kill(JOBS[i].pid,0)==0){
             act++;
-            if(act==job)
+            if(act==job){
                 kill(JOBS[i].pid,SIGCONT);
+                wait(NULL);
+            }
+           
         }
     }
 }
+void bg(char *argv[]){
+    int job=atoi(argv[1]);
+    int i;
+    int act=0;
+    for(i=0;i<sp;i++){
+        if(kill(JOBS[i].pid,0)==0){
+            act++;
+            if(act==job){
+                kill(JOBS[i].pid,SIGCONT);
+            }
+        }
+    }
+}
+
 void execute_unsetenv(char *argv[]){
     char* var =argv[1];
     unsetenv(var);
@@ -476,6 +493,9 @@ void runCommand(char* command){
     else if(strcmp(element, "quit") == 0){
         exit(0);
     }
+    else if(strcmp(element,"bg")==0){
+        bg(argv);
+    }
     else if(strcmp(element,"setenv")==0){
         execute_setenv(argv);
     }
@@ -583,17 +603,13 @@ void signalInit(){
     if(signal(SIGINT,SIG_IGN) == SIG_ERR)
         printf("Can't catch SIGINT\n");
 
-    if(signal(SIGSTOP,SIG_IGN) == SIG_ERR)
-        printf("Can't catch SIGSTOP\n");
 
-    if(signal(SIGTSTP,SIG_IGN) == SIG_ERR)
-        printf("Can't catch SIGTSTP\n");
+
 
     if(signal(SIGINT,sig_handler) == SIG_ERR)
         printf("Can't catch SIGINT\n");
 
-    if(signal(SIGSTOP,sig_handler) == SIG_ERR)
-        printf("Can't catch SIGSTOP\n");
+
 
     if(signal(SIGTSTP,sig_handler) == SIG_ERR)
         printf("Can't catch SIGTSTP\n");
