@@ -248,7 +248,6 @@ void runProcessForeground(char* argv[]){
         //wait(NULL);
         int status;
         waitpid(cur.pid,&status,WUNTRACED);
-
         return ;
     }
 }
@@ -402,27 +401,34 @@ void ls(char* opt){
     }
 }
 
-void runCommand(char* command){
-    char *element, *recomm = command, *temp;
-    element = strtok_r(recomm, " ", &recomm);
-    char* argv[1000]={element,0};
-    int tp = 0;
+void runCommand(char* command, int pstat){
+    char    *recomm = command;
+    char    *temp;
+    char    *element = strtok_r(recomm, " ", &recomm);
+    char*   argv[1000]={element,0};
+    int     tp = 0;
+    int     inp = 0;
+    int     out = 0;
+    int     outw = 0;
+    char    inpf[256] = {0};
+    char    outf[256] = {0};
+    int     sm;
+    int     INP;
+    int     OUT;
+    int     save_in;
+    int     save_out;
+
     while(argv[tp]){
         argv[tp + 1] = strtok_r(recomm, " ", &recomm);
         tp++;
     }
 
-    int inp = 0, out = 0, outw = 0;
-    char inpf[256] = {0}, outf[256] = {0};
-    int sm;
-    int INP, OUT;
-    int save_in, save_out;
-    if(tp > 2 && argv[tp-1][strlen(argv[tp-1])-1] != '\"')
+    if(pstat!=-1 && tp > 2 && argv[tp-1][strlen(argv[tp-1])-1] != '\"')
     {
-        if(!strcmp(argv[tp-2], "<")){
+        if(pstat!=1 && !strcmp(argv[tp-2], "<")){
             inp = 1;
             strcpy(inpf, argv[tp-1]);
-            if(tp >= 5 && argv[tp-3][strlen(argv[tp-3])-1] != '\"'){
+            if(pstat!=2 && tp >= 5 && argv[tp-3][strlen(argv[tp-3])-1] != '\"'){
                 if(!strcmp(argv[tp-4],">")){
                     out = 1;
                     strcpy(outf, argv[tp-3]);
@@ -433,21 +439,21 @@ void runCommand(char* command){
                 }
             }
         }
-        else if(!strcmp(argv[tp-2], ">>")){
+        else if(pstat!=2 && !strcmp(argv[tp-2], ">>")){
             outw = 1;
             strcpy(outf, argv[tp-1]);
             if(tp >= 5 && argv[tp-3][strlen(argv[tp-3])-1] != '\"'){
-                if(!strcmp(argv[tp-4],"<")){
+                if(pstat!=1 && !strcmp(argv[tp-4],"<")){
                     inp = 1;
                     strcpy(inpf, argv[tp-3]);
                 }
             }
         }
-        else if(!strcmp(argv[tp-2], ">")){
+        else if(pstat!=2 && !strcmp(argv[tp-2], ">")){
             out = 1;
             strcpy(outf, argv[tp-1]);
             if(tp >= 5 && argv[tp-3][strlen(argv[tp-3])-1] != '\"'){
-                if(!strcmp(argv[tp-4],"<")){
+                if(pstat!=1 && !strcmp(argv[tp-4],"<")){
                     inp = 1;
                     strcpy(inpf, argv[tp-3]);
                 }
@@ -464,9 +470,9 @@ void runCommand(char* command){
         }
         if(out == 1 || outw == 1){
             if(out == 1)
-                OUT = open(outf, O_CREAT|O_WRONLY|O_TRUNC|S_IRWXU);
+                OUT = open(outf, O_CREAT|O_WRONLY|O_TRUNC|S_IRWXU,0666);
             else if(outw == 1)
-                OUT = open(outf, O_WRONLY|O_CREAT|O_APPEND);
+                OUT = open(outf, O_WRONLY|O_CREAT|O_APPEND,0666);
             save_out = dup(fileno(stdout));
             dup2(OUT, fileno(stdout));
             fflush(stdout);
@@ -528,7 +534,7 @@ void runCommand(char* command){
         printf("\e[1;1H\e[2J");
     }
     else if(strcmp(element,"pinfo")==0){
-        char *argv2[]={"pinfo",0};
+        char *argv2[] = {"pinfo",0};
         pinfo(argv2);
     }
     else{
@@ -558,10 +564,13 @@ void runPipe(char* command){
     int     fd_in = 0;
     char*   single = strtok_r(command, "|", &command);
     char*   doub = strtok_r(command, "|", &command);
+    int     no = 0;
 
-    if(doub == NULL) {runCommand(single); return;}
+    if(doub == NULL) {runCommand(single,0); return;}
 
     while(single){
+        no++;
+
         if(pipe(p) == -1){
             printf("%s\n", strerror(errno));
             exit(EXIT_FAILURE);
@@ -588,8 +597,15 @@ void runPipe(char* command){
                 printf("%s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
-
-            runCommand(single);
+            
+            if(doub && no>1)
+                runCommand(single,-1);
+            else if(no>1)
+                runCommand(single,1);
+            else if(doub)
+                runCommand(single,2);
+            else
+                runCommand(single,0);
             exit(EXIT_FAILURE);
         }
         else{
@@ -619,13 +635,8 @@ void signalInit(){
     if(signal(SIGINT,SIG_IGN) == SIG_ERR)
         printf("Can't catch SIGINT\n");
 
-
-
-
     if(signal(SIGINT,sig_handler) == SIG_ERR)
         printf("Can't catch SIGINT\n");
-
-
 
     if(signal(SIGTSTP,sig_handler) == SIG_ERR)
         printf("Can't catch SIGTSTP\n");
