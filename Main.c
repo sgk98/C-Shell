@@ -220,16 +220,6 @@ void runProcessForeground(char* argv[]){
     }
 }
 
-int characterFreq(char *str, char x){
-    int ret = 0;
-    int i = 0;
-    while(str[i]!='\0'){
-        if (x == str[i]) ret++;
-        i++;
-    }
-    return ret;
-}
-
 void getPwd(char *path){
     getcwd(path, PATH_MAX);
 }
@@ -288,10 +278,14 @@ void filePermissionDisplay(struct stat stt, char* tmp){
 }
 
 void echo(char *toprint[]){
-    int t = 1;
+    int     t = 1;
+
     while(toprint[t]){
         if(t > 1) printf(" ");
-        char *element, *str = toprint[t];
+
+        char    *element;
+        char    *str = toprint[t];
+
         element = strtok_r(str, "\"\'", &str);
         while(element){
             printf("%s", element);
@@ -303,15 +297,18 @@ void echo(char *toprint[]){
 }
 
 void pwd(){
-    char path[PATH_MAX+1];
+    char    path[PATH_MAX+1];
+
     getPwd(path);
     printf("%s\n", path);
 }
 
 void cd(char *ndir){
-    int ret;
-    char temp[PATH_MAX + 1];
+    int     ret;
+    char    temp[PATH_MAX + 1];
+
     getPwd(temp);
+
     if(ndir == NULL || strcmp(ndir, "~") == 0){
         ret = chdir(getenv("HOME"));
     }
@@ -322,7 +319,7 @@ void cd(char *ndir){
         ret = chdir(ndir);
     }
     if(ret == -1){
-        printf("Error\n");
+        strerror(errno);
     }
     else{
         strcpy(prevdir, temp);
@@ -330,23 +327,33 @@ void cd(char *ndir){
 }
 
 void ls(char* opt){
-    char perm[11];
-    char *timestring;
-    int a = 0, l = 0;
-    struct passwd *pwd;
-    struct group *grp;
-    DIR *dir;
-    struct dirent *fil;
-    struct stat stt;
+    char    perm[11];
+    char    *timestring;
+    int     a = 0;
+    int     l = 0;
+    DIR     *dir;
+    struct passwd   *pwd;
+    struct group    *grp;
+    struct dirent   *fil;
+    struct stat     stt;
+
     if(opt && ((strlen(opt) == 2 && opt[1] == 'a') ||
             (strlen(opt) == 3 && (opt[1] == 'a' || opt[2] == 'a'))))
         a = 1;
+
     if(opt && ((strlen(opt) == 2 && opt[1] == 'l') ||
             (strlen(opt) == 3 && (opt[1] == 'l' || opt[2] == 'l'))))
         l = 1;
+
     dir = opendir(".");
+    if(dir == NULL){
+        strerror(errno);
+        return;
+    }
+
     while((fil = readdir(dir)) != NULL){
         if(a == 0 && fil->d_name[0] == '.') continue;
+
         if(l){
             lstat(fil->d_name, &stt);
             pwd = getpwuid(stt.st_uid);
