@@ -4,6 +4,7 @@
 #include<pwd.h>
 #include<grp.h>
 #include<string.h>
+#include<errno.h>
 #include<inttypes.h>
 #include<stdlib.h>
 #include<unistd.h>
@@ -85,7 +86,7 @@ void proc_exit()
         pid_t   pid;
 
         while (1==1) {
-            pid = wait3 (&wstat, WNOHANG, (struct rusage *)NULL );
+            pid = wait3(&wstat, WNOHANG, (struct rusage *)NULL );
             if (pid == 0){
                 return;
             }
@@ -478,54 +479,93 @@ void runCommand(char* command){
 }
 
 void runPipe(char* command){
+
     int     p[2];
     pid_t   pid;
     int     fd_in = 0;
-    char* single = strtok_r(command, "|", &command);
-    char* doub = strtok_r(command, "|", &command);
+    char*   single = strtok_r(command, "|", &command);
+    char*   doub = strtok_r(command, "|", &command);
+
     if(doub == NULL) {runCommand(single); return;}
+
     while(single){
-        pipe(p);
-        if((pid = fork()) == -1) exit(EXIT_FAILURE);
+        if(pipe(p) == -1){
+            printf("%s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        if((pid = fork()) == -1){
+            exit(EXIT_FAILURE);
+        }
         else if(pid == 0){
-            dup2(fd_in, 0);
-            if(doub != NULL)
-                dup2(p[1], 1);
-            close(p[0]);
+
+            if(dup2(fd_in, 0) == -1){
+                printf("%s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+
+            if(doub != NULL){
+                if(dup2(p[1], 1) == -1){
+                    printf("%s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            if(close(p[0]) == -1){
+                printf("%s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+
             runCommand(single);
             exit(EXIT_FAILURE);
         }
         else{
             wait(NULL);
-            close(p[1]);
+            if(close(p[1]) == -1){
+                printf("%s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
             fd_in = p[0];
         }
+
         single = doub;
         doub = strtok_r(command, "|", &command);
     }
 }
 
 void separateCommand(char* prompt){
-    char *single, *reprompt = prompt;
-    single = strtok_r(reprompt, ";", &reprompt);
+    char    *reprompt = prompt;
+    char    *single = strtok_r(reprompt, ";", &reprompt);
     while(single){
         runPipe(single);
         single = strtok_r(reprompt, ";", &reprompt);
     }
 }
 
+void signalInit(){
+    if(signal(SIGINT,SIG_IGN) == SIG_ERR)
+        printf("Can't catch SIGINT\n");
+
+    if(signal(SIGSTOP,SIG_IGN) == SIG_ERR)
+        printf("Can't catch SIGSTOP\n");
+
+    if(signal(SIGTSTP,SIG_IGN) == SIG_ERR)
+        printf("Can't catch SIGTSTP\n");
+
+    if(signal(SIGINT,sig_handler) == SIG_ERR)
+        printf("Can't catch SIGINT\n");
+
+    if(signal(SIGSTOP,sig_handler) == SIG_ERR)
+        printf("Can't catch SIGSTOP\n");
+
+    if(signal(SIGTSTP,sig_handler) == SIG_ERR)
+        printf("Can't catch SIGTSTP\n");
+}
+
 int main(){
-    char prompt[1000];
+    char    prompt[1000];
     while(1){
-        signal(SIGINT,SIG_IGN);
-        signal(SIGSTOP,SIG_IGN);
-        signal(SIGTSTP,SIG_IGN);
-        if(signal(SIGINT,sig_handler)==0)
-            continue;
-        if(signal(SIGSTOP,sig_handler)==0)
-            continue;
-        if(signal(SIGTSTP,sig_handler)==0)
-            continue;
+        signalInit();
         promptDisplayer();
         scanf("%[^\n]s", prompt);
         getchar();
